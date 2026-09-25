@@ -1,5 +1,5 @@
 # =====================================================================
-# API DO LIVE GOAL - SEÇÃO SELEÇÃO (BRASIL E CABO VERDE)
+# API DO LIVE GOL - SEÇÃO SELEÇÃO (BRASIL E CABO VERDE)
 # Descrição:
 # Esta API gerencia e fornece o calendário oficial, placares reais e
 # o status em tempo real das partidas da Seleção Brasileira e de Cabo Verde
