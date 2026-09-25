@@ -1,15 +1,9 @@
-from datetime import datetime
-from database import Base, engine, get_db
-from fastapi import Depends, FastAPI
+from bs4 import BeautifulSoup
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from models import PartidaModel
-from schemas import PartidaSchema
-from sqlalchemy.orm import Session
+import requests
 
-# Cria as tabelas no banco de dados automaticamente
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI(title="Live Goal Seleção API - Dinâmica", version="2.0.0")
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,109 +14,79 @@ app.add_middleware(
 )
 
 
-def sincronizar_jogos_web():
-  """Função que simula a varredura/scraping de calendários oficiais e fontes
-
-  esportivas para garantir que os próximos jogos da seleção estejam sempre atualizados.
-  """
-  # Aqui entra a lógica de atualização dinâmica da Seleção Brasileira e Cabo Verde
-  # Mantemos a base atualizada com os confrontos mais recentes da Data FIFA atual (Setembro/Outubro 2026)
-  agenda_atualizada = [
-      {
-          "selecao": "Brasil",
-          "adversario": "Austrália",
-          "data": "2026-09-25",
-          "horario": "07:00",
-          "placar": "1 x 1",
-          "status": "Finalizado",
-          "campeonato": "Amistoso Internacional",
-      },
-      {
-          "selecao": "Cabo Verde",
-          "adversario": "Mali",
-          "data": "2026-09-25",
-          "horario": "16:00",
-          "placar": "0 x 0",
-          "status": "Ao Vivo",
-          "campeonato": "Eliminatórias da CAN",
-      },
-      {
-          "selecao": "Brasil",
-          "adversario": "Austrália (Próximo Jogo)",
-          "data": "2026-09-29",
-          "horario": "07:00",
-          "placar": "- x -",
-          "status": "Agendados",
-          "campeonato": "Amistoso Internacional",
-      },
-      {
-          "selecao": "Brasil",
-          "adversario": "Índia",
-          "data": "2026-10-03",
-          "horario": "11:00",
-          "placar": "- x -",
-          "status": "Agendados",
-          "campeonato": "Amistoso Internacional",
-      },
-      # Jogos futuros adicionados dinamicamente simulando o scraper da agenda da seleção
-      {
-          "selecao": "Brasil",
-          "adversario": "Japão",
-          "data": "2026-10-14",
-          "horario": "08:00",
-          "placar": "- x -",
-          "status": "Agendados",
-          "campeonato": "Amistoso Internacional",
-      },
-  ]
-  return agenda_atualizada
-
-
-@app.on_event("startup")
-def popular_ou_atualizar_dados():
-  db = next(get_db())
-  # Atualiza ou popula a base com os dados dinâmicos obtidos das fontes
-  jogos_web = sincronizar_jogos_web()
-
-  for j in jogos_web:
-    existe = (
-        db.query(PartidaModel)
-        .filter_by(selecao=j["selecao"], adversario=j["adversario"])
-        .first()
-    )
-    if not existe:
-      nova_partida = PartidaModel(**j)
-      db.add(nova_partida)
-  db.commit()
-
-
 @app.get("/")
-def home():
+def read_root():
   return {
       "message": (
-          "API Dinâmica do Live Goal conectada e puxando o calendário da"
+          "API Dinâmica do Live Goal conectada e puxando o calendário real da"
           " seleção!"
       ),
       "status": "online",
   }
 
 
-@app.get("/api/selecao/jogos", response_model=list[PartidaSchema])
-def listar_jogos(db: Session = Depends(get_db)):
-  partidas = db.query(PartidaModel).all()
-  agora = datetime.now()
+@app.get("/api/selecao/jogos")
+def get_jogos_selecao():
+  jogos = []
+  try:
+    # URL pública de calendário esportivo (exemplo estruturado para varredura real)
+    url = "https://www.espn.com.br/futebol/time/calendario/_/id/2094/selecao/brasil"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
+            " like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
 
-  # Lógica temporal inteligente para atualizar o status para 'Ao Vivo' (10 min antes)
-  for p in partidas:
-    data_hora_str = f"{p.data} {p.horario}"
-    try:
-      dt_jogo = datetime.strptime(data_hora_str, "%Y-%m-%d %H:%M")
-      diferenca_minutos = (dt_jogo - agora).total_seconds() / 60
+    response = requests.get(url, headers=headers, timeout=10)
 
-      if -120 <= diferenca_minutos <= 10:
-        if p.status != "Finalizado":
-          p.status = "Ao Vivo"
-    except ValueError:
-      pass
+    if response.status_code == 200:
+      soup = BeautifulSoup(response.text, "html.parser")
 
-  return partidas
+      # Procura pelas linhas de tabela ou blocos de partidas no site da ESPN
+      # O BeautifulSoup vai varrer a página real para capturar os confrontos
+      linhas = soup.find_all("tr", class_="Table__TR")
+
+      id_contador = 1
+      for linha in linhas:
+        colunas = linha.find_all("td")
+        if len(colunas) >= 3:
+          try:
+            # Extração dos dados reais direto da página da web
+            data_jogo = colunas[0].get_text(strip=True)
+            adversario = colunas[1].get_text(strip=True)
+            placar_horario = colunas[2].get_text(strip=True)
+
+            jogos.append({
+                "id": id_contador,
+                "selecao": "Brasil",
+                "adversario": adversario,
+                "data": data_jogo,
+                "horario": "A definir",
+                "placar": placar_horario,
+                "status": (
+                    "Ao Vivo" if "AO VIVO" in linha.get_text() else "Agendados"
+                ),
+                "campeonato": "Partida Oficial / Amistoso",
+            })
+            id_contador += 1
+          except Exception:
+            continue
+  except Exception as e:
+    print(f"Erro ao buscar dados reais: {e}")
+
+  # Caso a raspagem sofra bloqueios temporários do servidor de terceiros,
+  # mantemos uma estrutura de fallback para o site não ficar vazio.
+  if not jogos:
+    jogos = [{
+        "id": 1,
+        "selecao": "Brasil",
+        "adversario": "Atualizando calendário oficial...",
+        "data": "2026-10-01",
+        "horario": "--:--",
+        "placar": "- x -",
+        "status": "Agendados",
+        "campeonato": "Data FIFA",
+    }]
+
+  return jogos
