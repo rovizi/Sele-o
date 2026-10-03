@@ -1,26 +1,3 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import requests
-
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/")
-def read_root():
-    return {
-        "message": "API do Live Goal integrada e formatada!",
-        "status": "online",
-    }
-
-
 @app.get("/api/selecao/jogos")
 def get_jogos_selecao():
     try:
@@ -38,10 +15,19 @@ def get_jogos_selecao():
                     score_home = evento.get("intHomeScore")
                     score_away = evento.get("intAwayScore")
                     
-                    # Trata o placar quando o jogo ainda não aconteceu ou quando o valor for None
+                    raw_status = evento.get("strStatus", "")
+                    
+                    # Trata o placar quando o jogo tem gols ou pontuação registrada
                     if score_home is not None and score_away is not None:
                         placar = f"{score_home} x {score_away}"
-                        status = "Finalizado" if evento.get("strStatus") == "Match Finished" else "Ao Vivo"
+                        
+                        # Mapeamento inteligente de status da partida
+                        if raw_status == "Match Finished" or raw_status == "FT":
+                            status = "Finalizado"
+                        elif raw_status == "HT" or raw_status == "Halftime":
+                            status = "Intervalo"
+                        else:
+                            status = "Ao Vivo"
                     else:
                         placar = "VS"
                         status = "Agendados"
@@ -67,8 +53,8 @@ def get_jogos_selecao():
         "selecao": "Brasil",
         "adversario": "Colômbia",
         "data": "2026-09-25",
-        "horario": "Ao Vivo",
+        "horario": "16:00",
         "placar": "3 x 0",
-        "status": "Ao Vivo",
+        "status": "Finalizado",
         "campeonato": "Eliminatórias / Amistoso",
     }]
