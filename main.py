@@ -36,19 +36,23 @@ def get_jogos_selecao():
                     score_home = evento.get("intHomeScore")
                     score_away = evento.get("intAwayScore")
                     
-                    raw_status = evento.get("strStatus", "")
+                    raw_status = str(evento.get("strStatus", "")).strip().lower()
                     
                     # Trata o placar quando o jogo tem gols ou pontuação registrada
-                    if score_home is not None and score_away is not None:
+                    if score_home is not None and score_away is not None and score_home != "" and score_away != "":
                         placar = f"{score_home} x {score_away}"
                         
-                        # Mapeamento inteligente de status da partida
-                        if raw_status == "Match Finished" or raw_status == "FT":
+                        # Mapeamento inteligente de status da partida corrigido:
+                        # Se explicitamente indica fim, ou se o status veio vazio/indefinido mas já tem placar de jogo passado, tratamos como Finalizado.
+                        if raw_status in ["match finished", "ft", "full-time", "finished", "aet", "pen"]:
                             status = "Finalizado"
-                        elif raw_status == "HT" or raw_status == "Halftime":
+                        elif raw_status in ["ht", "halftime", "intervalo"]:
                             status = "Intervalo"
-                        else:
+                        elif raw_status in ["live", "in play", "1h", "2h"]:
                             status = "Ao Vivo"
+                        else:
+                            # Se tem placar mas a API não mandou status claro, consideram-se jogos finalizados passados
+                            status = "Finalizado"
                     else:
                         placar = "VS"
                         status = "Agendados"
