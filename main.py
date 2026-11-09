@@ -15,7 +15,7 @@ app.add_middleware(
 
 @app.get("/api/selecao/jogos")
 def get_jogos_selecao():
-    # Data e hora oficial do jogo (Exemplo: Brasil x Japão em 14/11/2026 às 07:15)
+    # Data e hora oficial do jogo
     data_jogo_str = "2026-11-14 07:15:00"
     data_jogo = datetime.strptime(data_jogo_str, "%Y-%m-%d %H:%M:%S")
     
@@ -38,15 +38,11 @@ def get_jogos_selecao():
         data_exibida = "Sábado, 14/11/2026 às 07:15"
 
     # 2. Lógica de Status e Transição de Abas (10 minutos antes vai para Ao Vivo)
-    # Se faltar 10 minutos ou menos (e a partida não tiver acabado), muda para pré-ao vivo / andamento
     status_partida = "PRE" # Padrão: Agendado
     
-    # Se já passou da hora ou faltam menos de 10 minutos (timedelta de 10 minutos = minutes=10)
     if timedelta(0) <= diferenca <= timedelta(minutes=10):
         status_partida = "LIVE" # Muda para a aba Ao Vivo 10 min antes
     elif diferenca < timedelta(0):
-        # Aqui a API da ESPN vai injetar o status real se estiver rolando ou encerrado
-        # Exemplo simulado: "LIVE" se estiver em andamento, "FT" se encerrado
         status_partida = "LIVE" 
 
     jogos = [
@@ -54,10 +50,10 @@ def get_jogos_selecao():
             "id": 1,
             "home_team": "Brasil",
             "away_team": "Japão",
-            "home_flag": "https://i.postimg.cc/URL_DA_BANDEIRA_DO_BRASIL", # Mantenha o link que você já usa
-            "away_flag": "https://i.postimg.cc/URL_DA_BANDEIRA_DO_JAPAO", # Mantenha o link que você já usa
-            "status": status_partida,  # Alterna automaticamente entre PRE e LIVE conforme o relógio
-            "date": data_exibida,      # Retorna "Hoje", "Amanhã" ou a data normal
+            "home_flag": "https://i.postimg.cc/1zwFGLvM/crie-uma-identidade-visual-exclusiva-baseada-na-ba-removebg-preview.png",
+            "away_flag": "https://i.postimg.cc/ydnknBcf/pngtree-japan-national-flag-round-shape-png-image-6589986.png",
+            "status": status_partida,
+            "date": data_exibida,
             "timestamp": "2026-11-14T07:15:00",
             "stadium": "Estádio Nacional de Singapura",
             "sub_info": "Jogo amistoso",
