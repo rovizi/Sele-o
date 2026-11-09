@@ -17,11 +17,10 @@ app.add_middleware(
 # Definição do fuso horário de Brasília (UTC-3)
 BRT = timezone(timedelta(hours=-3))
 
-# URL da API da ESPN para partidas internacionais/amistosos (ou seleções)
-# Você pode ajustar o endpoint conforme a categoria desejada da ESPN
+# URL da API da ESPN para partidas internacionais
 ESPN_SELECAO_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fif.friendlies/scoreboard"
 
-# Mapeamento local fixo de bandeiras controladas 100% pela sua API
+# Mapeamento local fixo de bandeiras controladas pela sua API
 BANDEIRAS_SELECOES = {
     "Brazil": "https://i.postimg.cc/1zwFGLvM/crie-uma-identidade-visual-exclusiva-baseada-na-ba-removebg-preview.png",
     "Brasil": "https://i.postimg.cc/1zwFGLvM/crie-uma-identidade-visual-exclusiva-baseada-na-ba-removebg-preview.png",
@@ -58,9 +57,9 @@ def parse_espn_matches(data):
             
             status_info = event.get("status", {})
             status_type = status_info.get("type", {})
-            state = status_type.get("state", "pre")  # 'pre', 'in', 'post'
+            state = status_type.get("state", "pre")
             
-            status_code = "LIVE" if state == "in" else state.upper()
+            status_code = "LIVE" if state == "in" else status_type.get("state", "pre").upper()
             status_detail = status_type.get("detail") or status_type.get("description", "")
             
             competitions = event.get("competitions", [])
@@ -76,8 +75,6 @@ def parse_espn_matches(data):
             for comp in competitors:
                 team_data = comp.get("team", {})
                 team_name = team_data.get("displayName") or team_data.get("name", "Seleção")
-                
-                # Injeta a bandeira controlada pela sua API com base no nome do país
                 team_logo = obter_bandeira(team_name)
                 
                 team_info = {
@@ -98,7 +95,8 @@ def parse_espn_matches(data):
                 "status_text": status_detail,
                 "home_team": home_team,
                 "away_team": away_team,
-                "campeonato": competition.get("type", {}).get("text", "Amistoso Internacional")
+                "campeonato": competition.get("type", {}).get("text", "Amistoso Internacional"),
+                "estadio": "Estádio Nacional de Singapura"
             })
         except Exception:
             continue
@@ -118,7 +116,7 @@ def get_jogos_selecao():
         raw_data = fetch_espn_data(ESPN_SELECAO_URL)
         matches = parse_espn_matches(raw_data)
         
-        # Override ou Injeção manual caso queira garantir o amistoso Brasil x Japão na lista
+        # Override manual para o jogo do Brasil x Japão (14/11/2026 às 07:15)
         manual_match_brasil_japao = {
             "id": "bra_jpn_2026",
             "name": "Brazil vs Japan",
@@ -133,12 +131,13 @@ def get_jogos_selecao():
                 "score": "0"
             },
             "status": "PRE",
-            "status_text": "15:00",
-            "date": "2026-11-20T15:00:00-03:00",
-            "campeonato": "Amistoso Internacional"
+            "status_text": "07:15",
+            "date": "2026-11-14T07:15:00-03:00",
+            "timestamp": int(datetime(2026, 11, 14, 7, 15, tzinfo=BRT).timestamp()),
+            "campeonato": "Amistoso Internacional",
+            "estadio": "Estádio Nacional de Singapura"
         }
         
-        # Garante que o jogo do Brasil x Japão apareça na lista caso a API da ESPN demore para abrir o evento
         if not any("Brazil" in m.get("name", "") and "Japan" in m.get("name", "") for m in matches):
             matches.insert(0, manual_match_brasil_japao)
             
@@ -160,8 +159,10 @@ def get_jogos_selecao():
                     "score": "0"
                 },
                 "status": "PRE",
-                "status_text": "15:00",
-                "date": "2026-11-20T15:00:00-03:00",
-                "campeonato": "Amistoso Internacional"
+                "status_text": "07:15",
+                "date": "2026-11-14T07:15:00-03:00",
+                "timestamp": int(datetime(2026, 11, 14, 7, 15, tzinfo=BRT).timestamp()),
+                "campeonato": "Amistoso Internacional",
+                "estadio": "Estádio Nacional de Singapura"
             }
         ]
