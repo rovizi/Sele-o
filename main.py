@@ -96,7 +96,8 @@ def parse_espn_matches(data):
                 "home_team": home_team,
                 "away_team": away_team,
                 "campeonato": competition.get("type", {}).get("text", "Amistoso Internacional"),
-                "estadio": "Estádio Nacional de Singapura"
+                "estadio": "Estádio Nacional de Singapura",
+                "sub_info": "Jogo amistoso"
             })
         except Exception:
             continue
@@ -135,7 +136,8 @@ def get_jogos_selecao():
             "date": "2026-11-14T07:15:00-03:00",
             "timestamp": int(datetime(2026, 11, 14, 7, 15, tzinfo=BRT).timestamp()),
             "campeonato": "Amistoso Internacional",
-            "estadio": "Estádio Nacional de Singapura"
+            "estadio": "Estádio Nacional de Singapura",
+            "sub_info": "Jogo amistoso"
         }
         
         if not any("Brazil" in m.get("name", "") and "Japan" in m.get("name", "") for m in matches):
@@ -163,6 +165,7 @@ def get_jogos_selecao():
                 "date": "2026-11-14T07:15:00-03:00",
                 "timestamp": int(datetime(2026, 11, 14, 7, 15, tzinfo=BRT).timestamp()),
                 "campeonato": "Amistoso Internacional",
-                "estadio": "Estádio Nacional de Singapura"
+                "estadio": "Estádio Nacional de Singapura",
+                "sub_info": "Jogo amistoso"
             }
         ]
