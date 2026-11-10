@@ -15,7 +15,7 @@ app.add_middleware(
 
 @app.get("/api/selecao/jogos")
 def get_jogos_selecao():
-    # Lista contendo os dois jogos da seleção
+    # Lista contendo os dois jogos da seleção com Singapura ajustado para 07:00
     jogos = [
         {
             "id": 1,
@@ -37,8 +37,8 @@ def get_jogos_selecao():
             "home_flag": "https://i.postimg.cc/fRtW8f54/bandeira-removebg-preview.png",
             "away_flag": "https://i.postimg.cc/1zwFGLvM/crie-uma-identidade-visual-exclusiva-baseada-na-ba-removebg-preview.png",
             "status": "PRE",
-            "date": "Terça-feira, 17/11/2026 às 07:15",
-            "timestamp": "2026-11-17T07:15:00",
+            "date": "Terça-feira, 17/11/2026 às 07:00",
+            "timestamp": "2026-11-17T07:00:00",
             "stadium": "Estádio Nacional de Singapura",
             "sub_info": "Jogo amistoso",
             "competition": "Amistoso Internacional"
