@@ -1,3 +1,4 @@
+
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +37,7 @@ def get_jogos_selecao():
     jogos_filtrados = []
 
     try:
-        # Endpoint correto da ESPN para amistosos internacionais com User-Agent para evitar bloqueio
+        # Endpoint oficial da ESPN para amistosos internacionais com User-Agent
         espn_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.friendly/scoreboard"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -63,7 +64,6 @@ def get_jogos_selecao():
                 home_name_en = home_comp["team"].get("name", "")
                 away_name_en = away_comp["team"].get("name", "")
 
-                # Filtra apenas jogos do Brasil
                 if "Brazil" not in [home_name_en, away_name_en] and "Brasil" not in [home_name_en, away_name_en]:
                     continue
 
@@ -81,7 +81,6 @@ def get_jogos_selecao():
                 dia_str = dias_semana[match_time_br.weekday()]
                 data_formatada = f"{dia_str}, {match_time_br.strftime('%d/%m/%Y às %H:%M')}"
 
-                # Padronização forçada do Estádio para ambos os jogos
                 venue_name = "Estádio Nacional de Singapura"
 
                 espn_state = event.get("status", {}).get("type", {}).get("state", "pre")
@@ -113,7 +112,7 @@ def get_jogos_selecao():
                     "competition": "Amistoso Internacional"
                 })
         
-        # Se a ESPN não retornar os eventos (por exemplo, antes do feed abrir), usa a grade oficial dos amistosos
+        # Fallback estruturado com o horário corrigido cravado em 07:15
         if not jogos_filtrados:
             jogos_base = [
                 {
@@ -125,8 +124,9 @@ def get_jogos_selecao():
                     "home_score": 0,
                     "away_score": 0,
                     "match_clock": "",
-                    "timestamp": "2026-11-14T07:15:00",
+                    "status": "PRE",
                     "date": "Sábado, 14/11/2026 às 07:15",
+                    "timestamp": "2026-11-14T07:15:00",
                     "stadium": "Estádio Nacional de Singapura",
                     "sub_info": "Jogo amistoso",
                     "competition": "Amistoso Internacional"
@@ -140,8 +140,9 @@ def get_jogos_selecao():
                     "home_score": 0,
                     "away_score": 0,
                     "match_clock": "",
-                    "timestamp": "2026-11-17T07:00:00",
+                    "status": "PRE",
                     "date": "Terça-feira, 17/11/2026 às 07:00",
+                    "timestamp": "2026-11-17T07:00:00",
                     "stadium": "Estádio Nacional de Singapura",
                     "sub_info": "Jogo amistoso",
                     "competition": "Amistoso Internacional"
@@ -167,7 +168,6 @@ def get_jogos_selecao():
         return jogos_filtrados
 
     except Exception as e:
-        # Se houver qualquer falha de rede na ESPN, retorna os jogos estruturados para o site nunca cair
         return [
             {
                 "id": "1",
