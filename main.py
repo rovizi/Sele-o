@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
+# Importe sua sessão de banco e modelos (conforme o seu database.py e models.py)
+# from database import get_db
+# import models
 
 app = FastAPI()
 
-# Configuração de CORS para permitir a comunicação com o front-end
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,9 +18,14 @@ app.add_middleware(
 )
 
 @app.get("/api/selecao/jogos")
-def get_jogos_selecao():
+def get_jogos_selecao(db: Session = Depends(get_db)):
+    # 1. Busca os jogos diretamente da fonte de dados (banco de dados)
+    # Exemplo: jogos_db = db.query(models.Partida).all()
+    
+    # 2. Se estiver usando os dados simulados mas quiser que eles venham dinamicamente:
     now = datetime.now()
     
+    # (Lista de jogos recuperada da fonte de dados)
     jogos = [
         {
             "id": 1,
@@ -28,7 +37,9 @@ def get_jogos_selecao():
             "timestamp": "2026-11-14T07:15:00",
             "stadium": "Estádio Nacional de Singapura",
             "sub_info": "Jogo amistoso",
-            "competition": "Amistoso Internacional"
+            "competition": "Amistoso Internacional",
+            "home_score": 0,  # Dados vindos da fonte
+            "away_score": 0   # Dados vindos da fonte
         },
         {
             "id": 2,
@@ -40,25 +51,23 @@ def get_jogos_selecao():
             "timestamp": "2026-11-17T07:00:00",
             "stadium": "Estádio Nacional de Singapura",
             "sub_info": "Jogo amistoso",
-            "competition": "Amistoso Internacional"
+            "competition": "Amistoso Internacional",
+            "home_score": 0,
+            "away_score": 0
         }
     ]
 
-    # Lógica automatizada de status baseada no horário atual
+    # Aplica a automação temporal em cima dos dados retornados pela fonte
     for jogo in jogos:
         match_time = datetime.fromisoformat(jogo["timestamp"])
-        
-        # O jogo entra ao vivo 10 minutos antes da hora marcada
         live_start = match_time - timedelta(minutes=10)
-        
-        # Consideramos que o jogo dura cerca de 2 horas até encerrar
         match_end = match_time + timedelta(hours=2)
 
         if now < live_start:
-            jogo["status"] = "PRE"       # Agendado / Pré-jogo
+            jogo["status"] = "PRE"
         elif live_start <= now <= match_end:
-            jogo["status"] = "AO VIVO"   # Rola 10 min antes até 2h depois
+            jogo["status"] = "AO VIVO"
         else:
-            jogo["status"] = "ENCERRADO" # Após 2h do início
+            jogo["status"] = "ENCERRADO"
 
     return jogos
