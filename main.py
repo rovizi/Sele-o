@@ -15,7 +15,8 @@ app.add_middleware(
 
 @app.get("/api/selecao/jogos")
 def get_jogos_selecao():
-    # Lista contendo os dois jogos da seleção com Singapura ajustado para 07:00
+    now = datetime.now()
+    
     jogos = [
         {
             "id": 1,
@@ -23,7 +24,6 @@ def get_jogos_selecao():
             "away_team": "Japão",
             "home_flag": "https://i.postimg.cc/1zwFGLvM/crie-uma-identidade-visual-exclusiva-baseada-na-ba-removebg-preview.png",
             "away_flag": "https://i.postimg.cc/ydnknBcf/pngtree-japan-national-flag-round-shape-png-image-6589986.png",
-            "status": "PRE",
             "date": "Sábado, 14/11/2026 às 07:15",
             "timestamp": "2026-11-14T07:15:00",
             "stadium": "Estádio Nacional de Singapura",
@@ -36,7 +36,6 @@ def get_jogos_selecao():
             "away_team": "Brasil",
             "home_flag": "https://i.postimg.cc/fRtW8f54/bandeira-removebg-preview.png",
             "away_flag": "https://i.postimg.cc/1zwFGLvM/crie-uma-identidade-visual-exclusiva-baseada-na-ba-removebg-preview.png",
-            "status": "PRE",
             "date": "Terça-feira, 17/11/2026 às 07:00",
             "timestamp": "2026-11-17T07:00:00",
             "stadium": "Estádio Nacional de Singapura",
@@ -44,4 +43,22 @@ def get_jogos_selecao():
             "competition": "Amistoso Internacional"
         }
     ]
+
+    # Lógica automatizada de status baseada no horário atual
+    for jogo in jogos:
+        match_time = datetime.fromisoformat(jogo["timestamp"])
+        
+        # O jogo entra ao vivo 10 minutos antes da hora marcada
+        live_start = match_time - timedelta(minutes=10)
+        
+        # Consideramos que o jogo dura cerca de 2 horas até encerrar
+        match_end = match_time + timedelta(hours=2)
+
+        if now < live_start:
+            jogo["status"] = "PRE"       # Agendado / Pré-jogo
+        elif live_start <= now <= match_end:
+            jogo["status"] = "AO VIVO"   # Rola 10 min antes até 2h depois
+        else:
+            jogo["status"] = "ENCERRADO" # Após 2h do início
+
     return jogos
