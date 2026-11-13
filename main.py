@@ -31,91 +31,91 @@ TRADUCAO_TIMES = {
 
 @app.get("/api/selecao/jogos")
 def get_jogos_selecao():
+    fuso_br = timezone(timedelta(hours=-3))
+    now = datetime.now(fuso_br)
+    jogos_filtrados = []
+
     try:
-        # URL geral de placares da ESPN com User-Agent para evitar bloqueio 400
-        espn_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/scoreboard?dates=20261113-20261120"
+        # Endpoint correto da ESPN para amistosos internacionais com User-Agent para evitar bloqueio
+        espn_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.friendly/scoreboard"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         
-        response = requests.get(espn_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        dados_espn = response.json()
+        response = requests.get(espn_url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            dados_espn = response.json()
 
-        jogos_filtrados = []
-        fuso_br = timezone(timedelta(hours=-3))
-        now = datetime.now(fuso_br)
+            for event in dados_espn.get("events", []):
+                competitions = event.get("competitions", [])
+                if not competitions:
+                    continue
+                
+                comp = competitions[0]
+                competitors = comp.get("competitors", [])
+                
+                home_comp = next((c for c in competitors if c.get("homeAway") == "home"), None)
+                away_comp = next((c for c in competitors if c.get("homeAway") == "away"), None)
 
-        for event in dados_espn.get("events", []):
-            competitions = event.get("competitions", [])
-            if not competitions:
-                continue
-            
-            comp = competitions[0]
-            competitors = comp.get("competitors", [])
-            
-            home_comp = next((c for c in competitors if c.get("homeAway") == "home"), None)
-            away_comp = next((c for c in competitors if c.get("homeAway") == "away"), None)
+                if not home_comp or not away_comp:
+                    continue
 
-            if not home_comp or not away_comp:
-                continue
+                home_name_en = home_comp["team"].get("name", "")
+                away_name_en = away_comp["team"].get("name", "")
 
-            home_name_en = home_comp["team"].get("name", "")
-            away_name_en = away_comp["team"].get("name", "")
+                # Filtra apenas jogos do Brasil
+                if "Brazil" not in [home_name_en, away_name_en] and "Brasil" not in [home_name_en, away_name_en]:
+                    continue
 
-            if "Brazil" not in [home_name_en, away_name_en] and "Brasil" not in [home_name_en, away_name_en]:
-                continue
+                home_team = TRADUCAO_TIMES.get(home_name_en, home_name_en)
+                away_team = TRADUCAO_TIMES.get(away_name_en, away_name_en)
 
-            home_team = TRADUCAO_TIMES.get(home_name_en, home_name_en)
-            away_team = TRADUCAO_TIMES.get(away_name_en, away_name_en)
+                home_score = int(home_comp.get("score", 0))
+                away_score = int(away_comp.get("score", 0))
 
-            home_score = int(home_comp.get("score", 0))
-            away_score = int(away_comp.get("score", 0))
+                date_str_utc = event.get("date")
+                match_time_utc = datetime.fromisoformat(date_str_utc.replace("Z", "+00:00"))
+                match_time_br = match_time_utc.astimezone(fuso_br)
 
-            date_str_utc = event.get("date")
-            match_time_utc = datetime.fromisoformat(date_str_utc.replace("Z", "+00:00"))
-            match_time_br = match_time_utc.astimezone(fuso_br)
+                dias_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
+                dia_str = dias_semana[match_time_br.weekday()]
+                data_formatada = f"{dia_str}, {match_time_br.strftime('%d/%m/%Y às %H:%M')}"
 
-            dias_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
-            dia_str = dias_semana[match_time_br.weekday()]
-            data_formatada = f"{dia_str}, {match_time_br.strftime('%d/%m/%Y às %H:%M')}"
-
-            # Padronização forçada para ambos os jogos exibirem o nome completo
-            venue_name = comp.get("venue", {}).get("fullName", "")
-            if not venue_name or "National Stadium" in venue_name or "Estádio Nacional" in venue_name:
+                # Padronização forçada do Estádio para ambos os jogos
                 venue_name = "Estádio Nacional de Singapura"
 
-            espn_state = event.get("status", {}).get("type", {}).get("state", "pre")
-            match_clock = event.get("status", {}).get("displayClock", "")
-            live_start = match_time_br - timedelta(minutes=10)
+                espn_state = event.get("status", {}).get("type", {}).get("state", "pre")
+                match_clock = event.get("status", {}).get("displayClock", "")
+                live_start = match_time_br - timedelta(minutes=10)
+                match_end = match_time_br + timedelta(hours=2)
 
-            if espn_state == "post":
-                status = "ENCERRADO"
-            elif espn_state == "in" or (espn_state == "pre" and now >= live_start):
-                status = "AO VIVO"
-            else:
-                status = "PRE"
+                if espn_state == "post":
+                    status = "ENCERRADO"
+                elif espn_state == "in" or (match_time_br <= now <= match_end) or (now >= live_start and now < match_time_br):
+                    status = "AO VIVO"
+                else:
+                    status = "PRE"
 
-            jogos_filtrados.append({
-                "id": event.get("id"),
-                "home_team": home_team,
-                "away_team": away_team,
-                "home_flag": BANDEIRAS_CUSTOM.get(home_name_en, home_comp["team"].get("logo")),
-                "away_flag": BANDEIRAS_CUSTOM.get(away_name_en, away_comp["team"].get("logo")),
-                "home_score": home_score,
-                "away_score": away_score,
-                "match_clock": match_clock if espn_state == "in" else "",
-                "status": status,
-                "date": data_formatada,
-                "timestamp": match_time_br.strftime("%Y-%m-%dT%H:%M:%S"),
-                "stadium": venue_name,
-                "sub_info": "Jogo amistoso",
-                "competition": "Amistoso Internacional"
-            })
-
-        # Fallback: Se a ESPN ainda não tiver indexado a partida no feed público, garante que os dois jogos aparecem perfeitamente
+                jogos_filtrados.append({
+                    "id": event.get("id"),
+                    "home_team": home_team,
+                    "away_team": away_team,
+                    "home_flag": BANDEIRAS_CUSTOM.get(home_name_en, home_comp["team"].get("logo")),
+                    "away_flag": BANDEIRAS_CUSTOM.get(away_name_en, away_comp["team"].get("logo")),
+                    "home_score": home_score,
+                    "away_score": away_score,
+                    "match_clock": match_clock if espn_state == "in" else "",
+                    "status": status,
+                    "date": data_formatada,
+                    "timestamp": match_time_br.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "stadium": venue_name,
+                    "sub_info": "Jogo amistoso",
+                    "competition": "Amistoso Internacional"
+                })
+        
+        # Se a ESPN não retornar os eventos (por exemplo, antes do feed abrir), usa a grade oficial dos amistosos
         if not jogos_filtrados:
-            jogos_filtrados = [
+            jogos_base = [
                 {
                     "id": "1",
                     "home_team": "Brasil",
@@ -125,9 +125,8 @@ def get_jogos_selecao():
                     "home_score": 0,
                     "away_score": 0,
                     "match_clock": "",
-                    "status": "PRE",
-                    "date": "Sábado, 14/11/2026 às 07:15",
                     "timestamp": "2026-11-14T07:15:00",
+                    "date": "Sábado, 14/11/2026 às 07:15",
                     "stadium": "Estádio Nacional de Singapura",
                     "sub_info": "Jogo amistoso",
                     "competition": "Amistoso Internacional"
@@ -141,18 +140,65 @@ def get_jogos_selecao():
                     "home_score": 0,
                     "away_score": 0,
                     "match_clock": "",
-                    "status": "PRE",
-                    "date": "Terça-feira, 17/11/2026 às 07:00",
                     "timestamp": "2026-11-17T07:00:00",
+                    "date": "Terça-feira, 17/11/2026 às 07:00",
                     "stadium": "Estádio Nacional de Singapura",
                     "sub_info": "Jogo amistoso",
                     "competition": "Amistoso Internacional"
                 }
             ]
 
+            for jogo in jogos_base:
+                match_time = datetime.fromisoformat(jogo["timestamp"]).replace(tzinfo=fuso_br)
+                live_start = match_time - timedelta(minutes=10)
+                match_end = match_time + timedelta(hours=2)
+
+                if now < live_start:
+                    status = "PRE"
+                elif live_start <= now <= match_end:
+                    status = "AO VIVO"
+                else:
+                    status = "ENCERRADO"
+
+                j_copy = jogo.copy()
+                j_copy["status"] = status
+                jogos_filtrados.append(j_copy)
+
         return jogos_filtrados
 
-    except requests.RequestException as e:
-        raise HTTPException(status_code=502, detail=f"Erro ao conectar na ESPN: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Se houver qualquer falha de rede na ESPN, retorna os jogos estruturados para o site nunca cair
+        return [
+            {
+                "id": "1",
+                "home_team": "Brasil",
+                "away_team": "Japão",
+                "home_flag": BANDEIRAS_CUSTOM["Brasil"],
+                "away_flag": BANDEIRAS_CUSTOM["Japão"],
+                "home_score": 0,
+                "away_score": 0,
+                "match_clock": "",
+                "status": "PRE",
+                "date": "Sábado, 14/11/2026 às 07:15",
+                "timestamp": "2026-11-14T07:15:00",
+                "stadium": "Estádio Nacional de Singapura",
+                "sub_info": "Jogo amistoso",
+                "competition": "Amistoso Internacional"
+            },
+            {
+                "id": "2",
+                "home_team": "Singapura",
+                "away_team": "Brasil",
+                "home_flag": BANDEIRAS_CUSTOM["Singapura"],
+                "away_flag": BANDEIRAS_CUSTOM["Brasil"],
+                "home_score": 0,
+                "away_score": 0,
+                "match_clock": "",
+                "status": "PRE",
+                "date": "Terça-feira, 17/11/2026 às 07:00",
+                "timestamp": "2026-11-17T07:00:00",
+                "stadium": "Estádio Nacional de Singapura",
+                "sub_info": "Jogo amistoso",
+                "competition": "Amistoso Internacional"
+            }
+        ]
