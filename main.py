@@ -26,7 +26,7 @@ def get_jogos_selecao():
             "status": "PRE",
             "date": "Sábado, 14/11/2026 às 07:15",
             "timestamp": "2026-11-14T07:15:00",
-            "stadium": "Estádio Nacional",
+            "stadium": "Estádio Nacional de Singapura",
             "sub_info": "Jogo amistoso",
             "competition": "Amistoso Internacional"
         },
@@ -44,5 +44,4 @@ def get_jogos_selecao():
             "competition": "Amistoso Internacional"
         }
     ]
-
     return jogos
